@@ -7,9 +7,21 @@ const channelGrid = document.getElementById('channel-grid');
 const currentChannelName = document.getElementById('current-channel-name');
 
 // Initialize channel grid
-function renderChannels() {
+function renderChannels(filter = 'all') {
     channelGrid.innerHTML = '';
-    channels.forEach(channel => {
+    let filteredChannels = channels;
+    
+    if (filter !== 'all') {
+        if (filter === 'bd') {
+            filteredChannels = channels.filter(ch => ch.category.startsWith('bd'));
+        } else if (filter === 'ind') {
+            filteredChannels = channels.filter(ch => ch.category.startsWith('ind-'));
+        } else {
+            filteredChannels = channels.filter(ch => ch.category === filter);
+        }
+    }
+    
+    filteredChannels.forEach(channel => {
         const card = document.createElement('div');
         card.className = 'channel-card';
         card.id = `channel-${channel.id}`;
@@ -24,6 +36,13 @@ function renderChannels() {
         card.addEventListener('click', () => playChannel(channel));
         channelGrid.appendChild(card);
     });
+}
+
+// Filter channels by category
+function filterChannels(category) {
+    document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+    event.target.classList.add('active');
+    renderChannels(category);
 }
 
 // Play a channel
