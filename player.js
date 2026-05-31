@@ -1,10 +1,12 @@
-// World Cup Live TV - Player Logic
+// Live TV by Rocky - Player Logic
 
 let hls = null;
 const video = document.getElementById('video-player');
 const overlay = document.getElementById('overlay');
 const channelGrid = document.getElementById('channel-grid');
 const currentChannelName = document.getElementById('current-channel-name');
+let retryCount = 0;
+const MAX_RETRIES = 2;
 
 // Initialize channel grid
 function renderChannels(filter = 'all') {
@@ -15,10 +17,15 @@ function renderChannels(filter = 'all') {
         if (filter === 'bd') {
             filteredChannels = channels.filter(ch => ch.category.startsWith('bd'));
         } else if (filter === 'ind') {
-            filteredChannels = channels.filter(ch => ch.category.startsWith('ind-'));
+            filteredChannels = channels.filter(ch => ch.category.startsWith('ind'));
         } else {
             filteredChannels = channels.filter(ch => ch.category === filter);
         }
+    }
+    
+    if (filteredChannels.length === 0) {
+        channelGrid.innerHTML = '<p style="color:#aaa; padding:1rem;">এই ক্যাটাগরিতে কোনো চ্যানেল নেই</p>';
+        return;
     }
     
     filteredChannels.forEach(channel => {
@@ -41,22 +48,37 @@ function renderChannels(filter = 'all') {
 // Filter channels by category
 function filterChannels(category) {
     document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
-    event.target.classList.add('active');
+    if (event && event.target) {
+        event.target.classList.add('active');
+    }
     renderChannels(category);
 }
 
 // Play a channel
 function playChannel(channel) {
+    retryCount = 0;
+    
     // Update UI
     document.querySelectorAll('.channel-card').forEach(card => card.classList.remove('active'));
-    document.getElementById(`channel-${channel.id}`).classList.add('active');
+    const activeCard = document.getElementById(`channel-${channel.id}`);
+    if (activeCard) activeCard.classList.add('active');
     currentChannelName.textContent = `${channel.name} - সরাসরি সম্প্রচার`;
     
-    // Hide overlay
-    overlay.classList.add('hidden');
+    // Show loading
+    showLoading();
     
     // Play stream
     playStream(channel.url);
+}
+
+// Show loading state
+function showLoading() {
+    overlay.classList.remove('hidden');
+    overlay.querySelector('.overlay-content').innerHTML = `
+        <div class="spinner" style="width:50px;height:50px;border:4px solid rgba(255,215,0,0.3);border-top-color:#ffd700;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 1rem;"></div>
+        <p>স্ট্রিম লোড হচ্ছে...</p>
+        <p style="font-size:0.8rem;color:#888;margin-top:0.5rem;">অনুগ্রহ করে অপেক্ষা করুন</p>
+    `;
 }
 
 // Play HLS stream
@@ -73,15 +95,31 @@ function playStream(url) {
             maxMaxBufferLength: 60,
             startLevel: -1,
             capLevelToPlayerSize: true,
-            debug: false
+            debug: false,
+            enableWorker: true,
+            lowLatencyMode: false,
+            xhrSetup: function(xhr, url) {
+                xhr.withCredentials = false;
+            }
         });
         
         hls.loadSource(url);
         hls.attachMedia(video);
         
         hls.on(Hls.Events.MANIFEST_PARSED, () => {
+            overlay.classList.add('hidden');
             video.play().catch(err => {
-                console.log('Autoplay blocked:', err);
+                console.log('Autoplay blocked, click to play:', err);
+                overlay.classList.remove('hidden');
+                overlay.querySelector('.overlay-content').innerHTML = `
+                    <span class="play-icon" style="cursor:pointer;">&#9654;</span>
+                    <p>ক্লিক করুন প্লে করতে</p>
+                `;
+                overlay.onclick = () => {
+                    video.play();
+                    overlay.classList.add('hidden');
+                    overlay.onclick = null;
+                };
             });
         });
 
@@ -89,24 +127,37 @@ function playStream(url) {
             if (data.fatal) {
                 switch (data.type) {
                     case Hls.ErrorTypes.NETWORK_ERROR:
-                        console.error('Network error, trying to recover...');
-                        hls.startLoad();
+                        if (retryCount < MAX_RETRIES) {
+                            retryCount++;
+                            console.log(`Network error, retry ${retryCount}/${MAX_RETRIES}...`);
+                            setTimeout(() => hls.startLoad(), 2000);
+                        } else {
+                            showError('নেটওয়ার্ক সমস্যা - এই চ্যানেল এখন পাওয়া যাচ্ছে না। অন্য চ্যানেল ট্রাই করুন।');
+                        }
                         break;
                     case Hls.ErrorTypes.MEDIA_ERROR:
                         console.error('Media error, trying to recover...');
                         hls.recoverMediaError();
                         break;
                     default:
-                        console.error('Fatal error, cannot recover');
                         showError('স্ট্রিম লোড করতে সমস্যা হচ্ছে। অনুগ্রহ করে অন্য চ্যানেল ট্রাই করুন।');
                         break;
                 }
             }
         });
+
+        // Timeout - if not loaded in 15 seconds, show error
+        setTimeout(() => {
+            if (!overlay.classList.contains('hidden')) {
+                showError('স্ট্রিম লোড হতে বেশি সময় নিচ্ছে। অন্য চ্যানেল ট্রাই করুন।');
+            }
+        }, 15000);
+
     } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
         // For Safari / iOS native HLS support
         video.src = url;
         video.addEventListener('loadedmetadata', () => {
+            overlay.classList.add('hidden');
             video.play().catch(err => {
                 console.log('Autoplay blocked:', err);
             });
@@ -124,10 +175,11 @@ function playCustomStream() {
         return;
     }
     
+    retryCount = 0;
     // Update UI
     document.querySelectorAll('.channel-card').forEach(card => card.classList.remove('active'));
     currentChannelName.textContent = 'কাস্টম স্ট্রিম - সরাসরি';
-    overlay.classList.add('hidden');
+    showLoading();
     
     playStream(url);
 }
@@ -136,9 +188,9 @@ function playCustomStream() {
 function showError(message) {
     overlay.classList.remove('hidden');
     overlay.querySelector('.overlay-content').innerHTML = `
-        <span style="font-size: 3rem;">&#9888;</span>
-        <p style="color: #ff6b6b; margin-top: 1rem;">${message}</p>
-        <p style="margin-top: 0.5rem; font-size: 0.9rem;">অন্য একটি চ্যানেল ট্রাই করুন</p>
+        <span style="font-size: 3rem; display:block; margin-bottom:1rem;">&#9888;</span>
+        <p style="color: #ff6b6b;">${message}</p>
+        <p style="margin-top: 0.5rem; font-size: 0.85rem; color:#888;">অন্য একটি চ্যানেল ট্রাই করুন</p>
     `;
 }
 
@@ -147,14 +199,17 @@ renderChannels();
 
 // Keyboard shortcuts
 document.addEventListener('keydown', (e) => {
+    if (e.target.tagName === 'INPUT') return;
+    
     if (e.key === 'f' || e.key === 'F') {
         if (document.fullscreenElement) {
             document.exitFullscreen();
         } else {
-            video.requestFullscreen().catch(err => console.log(err));
+            const container = document.querySelector('.video-container');
+            container.requestFullscreen().catch(err => console.log(err));
         }
     }
-    if (e.key === ' ' && document.activeElement.tagName !== 'INPUT') {
+    if (e.key === ' ') {
         e.preventDefault();
         if (video.paused) {
             video.play();
