@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>World Cup Live TV - বিশ্বকাপ লাইভ</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+</head>
+<body>
+    <header>
+        <div class="header-content">
+            <div class="logo">
+                <span class="logo-icon">&#9917;</span>
+                <h1>World Cup Live TV</h1>
+                <span class="badge">LIVE</span>
+            </div>
+            <p class="tagline">বিশ্বকাপ লাইভ দেখুন - সরাসরি সম্প্রচার</p>
+        </div>
+    </header>
+
+    <main>
+        <div class="player-section">
+            <div class="now-playing">
+                <span class="live-dot"></span>
+                <span id="current-channel-name">চ্যানেল নির্বাচন করুন</span>
+            </div>
+            <div class="video-container">
+                <video id="video-player" controls autoplay playsinline>
+                    আপনার ব্রাউজার ভিডিও সাপোর্ট করে না।
+                </video>
+                <div class="overlay" id="overlay">
+                    <div class="overlay-content">
+                        <span class="play-icon">&#9654;</span>
+                        <p>নিচের চ্যানেল লিস্ট থেকে একটি চ্যানেল সিলেক্ট করুন</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="channels-section">
+            <h2>&#128250; লাইভ চ্যানেল সমূহ</h2>
+            <div class="channel-grid" id="channel-grid">
+                <!-- Channels will be loaded dynamically -->
+            </div>
+        </div>
+
+        <div class="custom-stream-section">
+            <h2>&#128279; কাস্টম স্ট্রিম লিংক</h2>
+            <p>আপনার নিজের M3U8/HLS স্ট্রিম লিংক দিন:</p>
+            <div class="custom-input">
+                <input type="text" id="custom-url" placeholder="https://example.com/stream.m3u8">
+                <button onclick="playCustomStream()">Play</button>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <p>&copy; 2026 World Cup Live TV | শুধুমাত্র শিক্ষামূলক উদ্দেশ্যে</p>
+        <p class="disclaimer">এই ওয়েবসাইট কোনো টিভি চ্যানেলের সাথে সম্পর্কিত নয়। সমস্ত স্ট্রিম পাবলিক সোর্স থেকে নেওয়া।</p>
+    </footer>
+
+    <script src="channels.js"></script>
+    <script src="player.js"></script>
+</body>
+</html>
